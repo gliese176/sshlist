@@ -75,6 +75,7 @@ class EditHostWindow(Toplevel):
         self.bind('<Escape>', lambda e: self.abort())
         self.bind('<Control-s>', lambda e: self.destroy())
         
+        self.name_entry.bind('<Return>', lambda e: self.host_entry.focus_set())
         self.host_entry.bind('<Return>', lambda e: self.port_entry.focus_set())
         self.port_entry.bind('<Return>', lambda e: self.username_entry.focus_set())
         self.username_entry.bind('<Return>', lambda e: self.key_file_entry.focus_set())
@@ -140,7 +141,13 @@ class MainWindow(Tk):
         self.bindings_frame = ttk.Frame(self.notebook)
         self.bindings_frame.pack(fill=BOTH, expand=True)
 
-        self.bindings_label = Label(self.bindings_frame, text="<Escape> - quit\n<e> - edit server\n<a> - add server\n<d> - delete server\n<Return> - select server")
+        bindings_text = ("<Escape> - quit\n"
+                         "<e> - edit server\n"
+                         "<a> - add server\n"
+                         "<d> - delete server\n"
+                         "<c> - copy server\n"
+                         "<Return> - select server")
+        self.bindings_label = Label(self.bindings_frame, text=bindings_text)
         self.bindings_label.pack()
 
         # Adding tabs
@@ -157,6 +164,7 @@ class MainWindow(Tk):
         self.bind('<e>', lambda e: self.edit_server())
         self.bind('<a>', lambda e: self.add_server())
         self.bind('<d>', lambda e: self.delete_server())
+        self.bind('<c>', lambda e: self.copy_server())
         self.bind('<Return>', lambda e: self.select_server())
         self.bind('<q>', lambda e: self.update_servers_list())
     
@@ -164,9 +172,13 @@ class MainWindow(Tk):
         self.notebook.select(tab_id)
     
     def edit_server(self):
-        window = EditHostWindow(self)
-        window.attributes('-type', 'dialog')
-        host = window.open()
+        for index in self.servers_list.curselection():
+            server = self.servers[index]
+            window = EditHostWindow(self, server.name, server.host, server.port, server.username, server.key_file)
+            window.attributes('-type', 'dialog')
+            self.servers[index] = window.open().host_data
+        self.serializer.save_servers(self.servers)
+        self.update_servers_list()
 
     def add_server(self):
         window = EditHostWindow(self)
@@ -180,6 +192,20 @@ class MainWindow(Tk):
     def delete_server(self):
         for index in self.servers_list.curselection():
             self.servers.pop(index)
+        self.serializer.save_servers(self.servers)
+        self.update_servers_list()
+    
+    def copy_server(self):
+        for index in self.servers_list.curselection():
+            server = self.servers[index]
+            new_server = HostData(
+                server.name + "_copy",
+                server.host,
+                server.port,
+                server.username,
+                server.key_file
+            )
+            self.servers.append(new_server)
         self.serializer.save_servers(self.servers)
         self.update_servers_list()
 
